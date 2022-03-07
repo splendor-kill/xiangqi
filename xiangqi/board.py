@@ -1,3 +1,4 @@
+import re
 from collections import defaultdict
 from enum import IntEnum
 from typing import Dict, Tuple
@@ -45,6 +46,8 @@ ICCS_ACTION_COL_MAP = {c: i for i, c in enumerate('abcdefghi')}
 ICCS_ACTION_ROW_MAP = {str(i): N_ROWS - 1 - i for i in range(N_ROWS)}
 ICCS_ACTION_COL_INV_MAP = {v: k for k, v in ICCS_ACTION_COL_MAP.items()}
 ICCS_ACTION_ROW_INV_MAP = {v: k for k, v in ICCS_ACTION_ROW_MAP.items()}
+
+PAT_BOARD_ROW = re.compile(r'\s*(.)－(.)－(.)－(.)－(.)－(.)－(.)－(.)－(.).*')
 
 
 class Board:
@@ -160,18 +163,19 @@ class Board:
     def _parse(board: str):
         board = board.strip()
         rows = board.splitlines()
-        rows = rows[:9:2] + rows[-9::2]
-        assert len(rows) == N_ROWS
         sit = {}
-        for i, r in enumerate(rows):
-            r = r.strip()
-            assert len(r) == 17
-            r = r[::2]  # remove non-place chars
-            for j, c in enumerate(r):
-                if c in PIECE_CHARS:
-                    camp, force = recog_piece(c)
-                    clz = FORCE_CLZ[force]
-                    sit[(j, i)] = clz(camp, j, i)
+        i = -1
+        for row in rows:
+            m = PAT_BOARD_ROW.match(row)
+            if not m:
+                continue
+            i += 1
+            for j, c in enumerate(m.groups()):
+                if c not in PIECE_CHARS:
+                    continue
+                camp, force = recog_piece(c)
+                clz = FORCE_CLZ[force]
+                sit[(j, i)] = clz(camp, j, i)
         return sit
 
     @staticmethod
