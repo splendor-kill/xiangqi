@@ -43,15 +43,17 @@ class Env:
         return ob
 
     def _make_observation(self, captured=None):
-        state = self.board.observe()
+        # state = self.board.observe()
         valid_actions = self.board.get_final_valid_actions(self.cur_player)
-        ob = {'cur_player': self.cur_player,
-              'board_state': self.to_fen(),
-              'valid_actions': valid_actions,
-              'sue_draw': self.sue_draw,
-              'board': self.board,
-              'captured': captured
-              }
+        if captured is not None:
+            captured = (captured.col, captured.row, captured.camp, captured.force)
+        ob = {
+            'board_state': self.to_fen(),
+            'sue_draw': self.sue_draw,
+            'cur_player': self.cur_player,  # just for convenient from here
+            'valid_actions': valid_actions,
+            'captured': captured
+        }
         return ob
 
     def render(self):

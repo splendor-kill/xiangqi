@@ -113,6 +113,7 @@ class Board:
                     real_actions.append(a)
             finally:
                 self.undo_virtual_move(a['piece'], bak_pos, dst_p, dst_p_idx)
+        real_actions = [to_iccs_action(a) for a in real_actions]
         return real_actions
 
     def virtual_move(self, piece: Piece, dst):
