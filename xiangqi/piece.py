@@ -133,11 +133,9 @@ class Piece:
         return col, row
 
     def move_to(self, board_, col, row):
-        p = board_.piece_at(col, row)
-        if p is not None:
+        is_ok, captured = board_.naked_move(self, (col, row))
+        if not is_ok or captured is not None:
             raise ValueError('dst pos nonempty')
-        self.col = col
-        self.row = row
 
     def will_cause_shuai_meet(self, board_, action_col, action_row):
         shuai1 = board_.get_shuai(self.camp)

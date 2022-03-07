@@ -1,6 +1,6 @@
 from collections import defaultdict
 from enum import IntEnum
-from typing import List
+from typing import Dict, Tuple
 
 import numpy as np
 
@@ -72,13 +72,16 @@ class Board:
                 situation = self._parse(situation)
         elif isinstance(situation, np.ndarray):
             situation = self.decode(situation)
-        self.situation: List[Piece] = situation
-        assert isinstance(self.situation, list)
+        elif isinstance(situation, list):
+            sitd = {(p.col, p.row): p for p in situation}
+            assert len(sitd) == len(situation)
+            situation = sitd
+        self.situation: Dict[Tuple[int, int], Piece] = situation
         self.checked = {Camp.RED: False, Camp.BLACK: False}
 
     def __str__(self):
         sit = {f'p{i}{j}': PLACE_CHARS[0] for i in range(N_ROWS) for j in range(N_ROWS)}
-        for p in self.situation:
+        for p in self.situation.values():
             k = f'p{p.row}{p.col}'
             sit[k] = str(p)
         return EMPTY_BOARD.format(**sit)
@@ -88,7 +91,7 @@ class Board:
 
     def get_valid_actions(self, camp):
         valid_actions = []
-        for p in self.situation:
+        for p in self.situation.values():
             if p.camp != camp:
                 continue
             poses = p.get_valid_pos(self)
@@ -106,57 +109,52 @@ class Board:
         valid_actions = self.get_valid_actions(camp)
         real_actions = []
         for a in valid_actions:
-            bak_pos, dst_p, dst_p_idx = None, None, None
+            is_ok, bak_pos, dst_p = False, None, None
             try:
-                bak_pos, dst_p, dst_p_idx, enemy_shuai_will_be_killed = self.virtual_move(a['piece'], a['dst'])
+                is_ok, bak_pos, dst_p = self.virtual_move(a['piece'], a['dst'])
+                enemy_shuai_will_be_killed = is_ok and dst_p is not None and dst_p.force == Force.SHUAI
                 if enemy_shuai_will_be_killed or not self.test_check(camp.opponent()):
                     real_actions.append(a)
             finally:
-                self.undo_virtual_move(a['piece'], bak_pos, dst_p, dst_p_idx)
-        real_actions = [to_iccs_action(a) for a in real_actions]
+                if is_ok:
+                    self.undo_virtual_move(a['piece'], bak_pos, dst_p)
         return real_actions
 
     def virtual_move(self, piece: Piece, dst):
-        piece_at_dst = self.piece_at(*dst)
-        if piece_at_dst is None:
-            bak_pos = (piece.col, piece.row)
-            piece.col = dst[0]
-            piece.row = dst[1]
-            return bak_pos, None, None, None
-        else:
-            if piece_at_dst.camp != piece.camp:
-                bak_pos = (piece.col, piece.row)
-                bak_idx = self.situation.index(piece_at_dst)
-                self.situation.remove(piece_at_dst)
-                piece.col = dst[0]
-                piece.row = dst[1]
-                enemy_shuai_will_be_killed = piece_at_dst.force == Force.SHUAI
-                return bak_pos, piece_at_dst, bak_idx, enemy_shuai_will_be_killed
-        return None, None, None, None
+        bak_pos = (piece.col, piece.row)
+        is_ok, captured = self.naked_move(piece, dst)
+        return is_ok, bak_pos, captured
 
-    def undo_virtual_move(self, bak_piece: Piece, bak_pos, removed_piece, removed_piece_idx):
-        if removed_piece is not None and removed_piece_idx is not None:
-            self.situation.insert(removed_piece_idx, removed_piece)
+    def undo_virtual_move(self, bak_piece: Piece, bak_pos, removed_piece):
         if bak_pos is not None:
-            bak_piece.col = bak_pos[0]
-            bak_piece.row = bak_pos[1]
+            assert bak_pos not in self.situation
+            is_ok, captured = self.naked_move(bak_piece, bak_pos)
+            assert is_ok
+            assert captured is None
+        if removed_piece is not None:
+            self.situation[(removed_piece.col, removed_piece.row)] = removed_piece
 
     def piece_at(self, col, row):
-        for p in self.situation:
-            if p.col == col and p.row == row:
-                return p
-        return None
+        return self.situation.get((col, row), None)
 
     def throw_away(self, piece):
-        if piece in self.situation:
-            self.situation.remove(piece)
-        else:
-            raise ValueError('piece not found')
+        self.situation.pop((piece.col, piece.row), None)
 
     def get_shuai(self, camp):
-        for p in self.situation:
-            if p.camp == camp and p.force == Force.SHUAI:
-                return p
+        black_palace = [(4, 0), (3, 0), (5, 0),
+                        (4, 1), (3, 1), (5, 1),
+                        (4, 2), (3, 2), (5, 2)]
+        red_palace = [(4, 9), (3, 9), (5, 9),
+                      (4, 8), (3, 8), (5, 8),
+                      (4, 7), (3, 7), (5, 7)]
+        palaces = {Camp.BLACK: black_palace, Camp.RED: red_palace}
+        palace = palaces[camp]
+        for pos in palace:
+            if pos in self.situation:
+                p = self.situation[pos]
+                if p.force == Force.SHUAI:
+                    return p
+        return None
 
     @staticmethod
     def _parse(board: str):
@@ -164,7 +162,7 @@ class Board:
         rows = board.splitlines()
         rows = rows[:9:2] + rows[-9::2]
         assert len(rows) == N_ROWS
-        sit = []
+        sit = {}
         for i, r in enumerate(rows):
             r = r.strip()
             assert len(r) == 17
@@ -173,7 +171,7 @@ class Board:
                 if c in PIECE_CHARS:
                     camp, force = recog_piece(c)
                     clz = FORCE_CLZ[force]
-                    sit.append(clz(camp, j, i))
+                    sit[(j, i)] = clz(camp, j, i)
         return sit
 
     @staticmethod
@@ -182,7 +180,7 @@ class Board:
         board = board.strip()
         rows = board.split('/')
         assert len(rows) == N_ROWS
-        sit = []
+        sit = {}
         for i, r in enumerate(rows):
             j = 0
             for e in r:
@@ -190,7 +188,7 @@ class Board:
                     camp = Camp.BLACK if e.islower() else Camp.RED
                     force = FORCE_ALIAS_INV[e]
                     clz = FORCE_CLZ[force]
-                    sit.append(clz(camp, j, i))
+                    sit[(j, i)] = clz(camp, j, i)
                     j += 1
                 else:
                     assert e.isdigit()
@@ -201,7 +199,7 @@ class Board:
     def board_to_fen1(self):
         """first part of FEN string"""
         b = [[' ' for _ in range(N_COLS)] for _ in range(N_ROWS)]
-        for p in self.situation:
+        for p in self.situation.values():
             b[p.row][p.col] = piece_2_char_wxf(p.camp, p.force)
         rows = []
         for row in b:
@@ -222,14 +220,14 @@ class Board:
 
     def filter(self, camp, force):
         d = defaultdict(list)
-        for p in self.situation:
+        for p in self.situation.values():
             if p.camp == camp and p.force == force:
                 d[p.col].append(p)
         return d
 
     def get_piece(self, camp, force_, col, row_indicator: RowIndicator = None, action=None) -> Piece:
         pieces = []
-        for p in self.situation:
+        for p in self.situation.values():
             if p.camp == camp and p.force == force_ and p.col == col:
                 pieces.append(p)
         n_pieces = len(pieces)
@@ -278,18 +276,9 @@ class Board:
         if not piece.can_move(self, *dst):
             raise ValueError('cannot do this')
 
-        captured = None
-        if piece_at_dst is None:  # just move
-            piece.col = dst[0]
-            piece.row = dst[1]
-        else:
-            if piece_at_dst.camp != piece.camp:
-                self.situation.remove(piece_at_dst)
-                piece.col = dst[0]
-                piece.row = dst[1]
-                captured = piece_at_dst
-            else:
-                raise ValueError('illegal move')
+        is_ok, captured = self.naked_move(piece, dst)
+        if not is_ok:
+            raise ValueError('illegal move')
         check = False
         if self.test_check(piece.camp):
             self.checked[piece.camp.opponent()] = True
@@ -297,6 +286,18 @@ class Board:
         if self.checked[piece.camp] and not self.test_check(piece.camp.opponent()):
             self.checked[piece.camp] = False
         return captured, check
+
+    def naked_move(self, piece, dst):
+        piece_at_dst = self.piece_at(*dst)
+        if piece_at_dst is not None and piece_at_dst.camp == piece.camp:
+            return False, None  # our own, do nothing
+        if piece_at_dst is not None:  # enemy
+            del self.situation[dst]
+        del self.situation[(piece.col, piece.row)]  # del original pos
+        piece.col = dst[0]
+        piece.row = dst[1]
+        self.situation[(piece.col, piece.row)] = piece
+        return True, piece_at_dst
 
     def test_shuai_meet(self, shuai1_pos, shuai2_pos, ignore_piece=None):
         col1, row1 = shuai1_pos
@@ -312,18 +313,18 @@ class Board:
 
     def test_draw(self):
         piece_cnt = {Camp.RED: defaultdict(int), Camp.BLACK: defaultdict(int)}
-        for p in self.situation:
+        for p in self.situation.values():
             d = piece_cnt[p.camp]
             d[p.force] += 1
-        defend = set([Force.XIANG, Force.SHI, Force.SHUAI])
+        defend = {Force.XIANG, Force.SHI, Force.SHUAI}
         if set(piece_cnt[Camp.RED].keys()).issubset(defend) and set(piece_cnt[Camp.BLACK].keys()).issubset(defend):
             return True
 
-        attack = set([Force.JU, Force.MA, Force.PAO, Force.BING])
+        attack = {Force.JU, Force.MA, Force.PAO, Force.BING}
         attack_red = set(piece_cnt[Camp.RED].keys()).intersection(attack)
-        red_attack_weak = not attack_red or attack_red == set([Force.BING]) and piece_cnt[Camp.RED][Force.BING] <= 2
+        red_attack_weak = not attack_red or attack_red == {Force.BING} and piece_cnt[Camp.RED][Force.BING] <= 2
         attack_black = set(piece_cnt[Camp.BLACK].keys()).intersection(attack)
-        black_attack_weak = not attack_black or attack_black == set([Force.BING]) and piece_cnt[Camp.RED][
+        black_attack_weak = not attack_black or attack_black == {Force.BING} and piece_cnt[Camp.RED][
             Force.BING] <= 2
 
         red_defend = set(piece_cnt[Camp.RED].keys()).intersection(defend)
@@ -348,19 +349,19 @@ class Board:
 
     def encode(self):
         a = np.zeros((N_ROWS, N_COLS), dtype=np.int32)
-        for p in self.situation:
+        for p in self.situation.values():
             a[p.row, p.col] = p.encode()
         return a
 
     @staticmethod
     def decode(arr: np.ndarray):
         rows, cols = arr.nonzero()
-        sit = []
+        sit = {}
         for col, row in zip(cols, rows):
             n = arr[row, col]
             camp, force = Piece.decode(n)
             clz = FORCE_CLZ[force]
-            sit.append(clz(camp, col, row))
+            sit[(col, row)] = clz(camp, col, row)
         return sit
 
 
@@ -500,7 +501,6 @@ def parse_action_iccs(cmd: str, board: Board):
 
     Args:
         cmd (str): str, e.g. h2e2
-        camp (Camp): which side
         board (Board):
     Returns:
         locations (xiangqi, dst)

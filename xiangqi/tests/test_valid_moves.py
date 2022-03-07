@@ -820,7 +820,7 @@ class BingTest(unittest.TestCase):
         col, row = 4, 9
         camp = Camp.BLACK
         p = Bing(camp, col, row)
-        situation = [Shuai(Camp.RED, 4, 9), Shuai(Camp.BLACK, 3, 0), p]
+        situation = [Shuai(Camp.RED, 4, 8), Shuai(Camp.BLACK, 3, 0), p]
         board = Board(situation)
         valid = []
         for c in range(N_COLS):

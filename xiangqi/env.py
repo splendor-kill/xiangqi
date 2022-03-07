@@ -2,7 +2,7 @@ from logging import getLogger
 
 import numpy as np
 
-from board import Board, parse_action_iccs, infer_action_and_param
+from board import Board, parse_action_iccs, infer_action_and_param, to_iccs_action
 from constants import Camp, Force, Action, REWARD_DRAW, REWARD_WIN, REWARD_LOSE, REWARD_ILLEGAL, FULL_BOARD
 from piece import CAMP_ALIAS, CAMP_ALIAS_INV, POINT_OUT_CHECK
 
@@ -45,6 +45,7 @@ class Env:
     def _make_observation(self, captured=None):
         # state = self.board.observe()
         valid_actions = self.board.get_final_valid_actions(self.cur_player)
+        valid_actions = [to_iccs_action(a) for a in valid_actions]
         if captured is not None:
             captured = (captured.col, captured.row, captured.camp, captured.force)
         ob = {
