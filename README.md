@@ -41,16 +41,14 @@
 
 ### 环境
 
-规则：执红者先下
+默认执红者先下
 
 观察到的信息包括：
 
-* `cur_player`: 当前玩家，即现在轮到谁决策了，红或黑
-* `board_state`：棋盘状态，[FEN串](https://www.xqbase.com/protocol/cchess_fen.htm)
-* `valid_actions`: 合法的走法数组，每个走法包含的信息有棋子和目标位置，只包含当前玩家的合法走法
+* `board_state`：棋盘状态，[FEN串](https://www.xqbase.com/protocol/cchess_fen.htm)，它包含了局面的所有信息
 * `sue_draw`: 是否对手在求和，**如果是，需要对求和做出反应**，即是否同意和局
-* `board`: 为了方便，内部对象
-* `captured`: 上一步被吃掉的子，方便做reward shaping
+
+
 
 操作环境的输入(即`env.step(action)`中的`action`)为一个字符串：
 

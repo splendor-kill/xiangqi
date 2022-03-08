@@ -43,7 +43,6 @@ class Env:
         return ob
 
     def _make_observation(self, captured=None):
-        # state = self.board.observe()
         valid_actions = self.board.get_final_valid_actions(self.cur_player)
         valid_actions = [to_iccs_action(a) for a in valid_actions]
         if captured is not None:
@@ -65,6 +64,16 @@ class Env:
 
     def step(self, action):
         self.n_steps += 1
+
+        if isinstance(action, str):
+            try:
+                action = self.adapt_move(action)
+            except ValueError as e:
+                logger.info(repr(e))
+                self.done = True
+                self.winner = self.cur_player.opponent()
+                return None, REWARD_ILLEGAL, True, None
+
         if 'action' in action and action['action'] == Action.RESIGN:
             self.done = True
             self.winner = self.cur_player.opponent()
@@ -234,6 +243,17 @@ class Env:
             '0',
             str(self.n_steps // 2)]
         return ' '.join(parts)
+
+    def adapt_move(self, action: str):
+        if action in {Action.RESIGN.name, Action.SUE_DRAW.name}:
+            return {'action': Action(action)}
+        action = action.lower()
+        if action in {'yes', 'no'}:
+            return {'action': Action.SUE_DRAW, 'act_param': bool(action == 'yes')}
+        piece, dst = parse_action_iccs(action, self.board)
+        act, param, _ = infer_action_and_param(piece, dst)
+        action = {'action': act, 'act_param': param, 'piece': piece, 'dst': dst}
+        return action
 
 
 if __name__ == '__main__':
