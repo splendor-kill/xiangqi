@@ -58,8 +58,9 @@ class Env:
         return ob
 
     def render(self):
-        print('\n'.join(self.step_msgs))
-        self.step_msgs.clear()
+        if len(self.step_msgs) > 0:
+            print('\n'.join(self.step_msgs))
+            self.step_msgs.clear()
         print(self.board)
 
     def step(self, action):
