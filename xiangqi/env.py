@@ -1,3 +1,4 @@
+import copy
 from logging import getLogger
 
 import numpy as np
@@ -6,7 +7,7 @@ from board import Board, parse_action_iccs, infer_action_and_param, to_iccs_acti
 from constants import Camp, Force, Action, REWARD_DRAW, REWARD_WIN, REWARD_LOSE, REWARD_ILLEGAL, FULL_BOARD
 from piece import CAMP_ALIAS, CAMP_ALIAS_INV, POINT_OUT_CHECK
 
-MAX_GAME_LENGTH = 200
+MAX_GAME_LENGTH = 160
 LOWER_BOUND_SUE_DRAW = 25
 N_STATES_TO_TEST_DRAW = 12
 
@@ -44,7 +45,7 @@ class Env:
 
     def _make_observation(self, captured=None):
         if captured is not None:
-            captured = (captured.col, captured.row, captured.camp, captured.force)
+            captured = copy.copy(captured)
         ob = {
             'board_state': self.to_fen(),
             'sue_draw': self.sue_draw,
@@ -112,7 +113,7 @@ class Env:
             ob = self._make_observation()
             self._record_state(ob['board_state'])
             assert len(ob['valid_actions']) != 0
-            return ob, None, False, None
+            return ob, 0, False, None
 
         piece = action['piece']
         dst = action['dst']
@@ -153,7 +154,7 @@ class Env:
         ob = self._make_observation(captured)
         self._record_state(ob['board_state'])
         assert len(ob['valid_actions']) != 0
-        return ob, None, False, None
+        return ob, 0, False, None
 
     def close(self):
         self.board = None

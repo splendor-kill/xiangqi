@@ -69,7 +69,7 @@ def recog_piece(piece: str):
 
 
 class Piece:
-    def __init__(self, camp: Camp, force: Force, col, row):
+    def __init__(self, camp: Camp, force: Force, col: int, row: int):
         """xiangqi 术语参考 http://wxf.ca/xq/computer/XIANGQI_TERMS_IN_ENGLISH.pdf
 
         :param col: file
