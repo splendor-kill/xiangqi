@@ -214,15 +214,17 @@ class Env:
     def from_fen(fen: str):
         parts = fen.strip().split()
         n_parts = len(parts)
-        assert n_parts >= 6
+        assert n_parts >= 2
         opening = parts[0]
         color = parts[1]
+        env = Env(opening=opening, who_first=CAMP_ALIAS_INV[color])
+        if n_parts == 2:
+            return env
+
         assert parts[2] == '-'
         assert parts[3] == '-'
         n_steps_since_last_kill = int(parts[4])
         n_turns = int(parts[5])
-
-        env = Env(opening=opening, who_first=CAMP_ALIAS_INV[color])
         env.n_steps = 2 * n_turns
         if n_parts == 6:
             return env
