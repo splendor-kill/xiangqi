@@ -1,16 +1,40 @@
-# cchess
+# Xiangqi
 
 
 
-### Design decisions
+![env.render](./env.render.png)
 
-#### observation
+
+
+## How to use
+
+```python
+from xiangqi import Env
+
+env = Env(opening)  # 不传开局状态表示从头下起
+
+ob = env.reset()  # 初始观察
+while True:
+    env.render()  # 显示棋局
+    player = # which agent are responsible for ob['cur_player']?
+    action = player.make_decision(**ob)  # agent 的决策
+    ob, reward, done, info = env.step(action)
+    if done:
+        env.render()
+        break
+```
+
+
+
+## Design decisions
+
+### observation
 
 以当前玩家的视角观察，包括坐标系、行、列，以及当前的合法走法，上一步被对手吃掉的子(用于reward shaping)
 
 
 
-#### action
+### action
 
 * ~~方案1~~
 
@@ -39,7 +63,7 @@
 
 
 
-### 环境
+## Details
 
 默认执红者先下
 
@@ -75,7 +99,6 @@ UCCI走法串: 如"b7b0"，即源位置和目标位置的编码
 棋子在颜色上做了区分，在字形上也做了区分，红色的感觉更带人性一些，黑方有点像原始文明
 
 另外"将军"，吃子等信息也会显示
-![env.render](./env.render.png)
 
 
 
@@ -119,26 +142,9 @@ def chinese_to_ucci(action, camp, board)  # 中文纵线格式 -> ucci格式，�
 def ucci_to_chinese(action)  # 上面函数的逆
 ```
 
-示例：
-
-```python
-env = Env(opening)  # 不传开局状态表示从头下起
-
-ob = env.reset()  # 初始观察
-while True:
-    env.render()  # 显示棋局
-    player = # which agent are responsible for ob['cur_player']?
-    action = player.make_decision(**ob)  # agent 的决策
-    ob, reward, done, info = env.step(action)
-    if done:
-        env.render()
-        break
-
-```
 
 
-
-### reference
+## reference
 
 * [Xiangqi](https://en.wikipedia.org/wiki/Xiangqi)
 
