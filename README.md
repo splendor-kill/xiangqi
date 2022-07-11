@@ -2,7 +2,7 @@
 
 
 
-![env.render](./env.render.png)
+![UI](https://github.com/splendor-kill/xiangqi/raw/main/env.render.png)
 
 
 
